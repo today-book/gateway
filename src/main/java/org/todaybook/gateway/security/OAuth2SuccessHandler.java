@@ -1,9 +1,11 @@
 package org.todaybook.gateway.security;
 
 import java.net.URI;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.server.WebFilterExchange;
@@ -37,12 +39,23 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
   }
 
   private Mono<Void> redirect(WebFilterExchange exchange, String jwt) {
+    ResponseCookie jwtCookie =
+        ResponseCookie.from("ACCESS_TOKEN", jwt)
+            .httpOnly(true)
+            .secure(true)
+            .path("/")
+            .sameSite("Lax")
+            .maxAge(Duration.ofHours(1))
+            .build();
+
     exchange.getExchange().getResponse().setStatusCode(HttpStatus.FOUND);
     exchange
         .getExchange()
         .getResponse()
         .getHeaders()
-        .setLocation(URI.create(authProperties.getLoginSuccessRedirectUri() + jwt));
+        .setLocation(URI.create(authProperties.getLoginSuccessRedirectUri()));
+
+    exchange.getExchange().getResponse().addCookie(jwtCookie);
     return exchange.getExchange().getResponse().setComplete();
   }
 }

@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,6 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
-  private static final String AUTHORIZATION_PREFIX = "Bearer ";
   private static final String HEADER_USER_ID = "X-User-Id";
   private static final String HEADER_USER_NAME = "X-User-Name";
 
@@ -46,12 +46,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
   /** Authorization 헤더에서 JWT 토큰을 추출합니다. */
   private String extractToken(ServerWebExchange exchange) {
-    String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-
-    if (authHeader == null || !authHeader.startsWith(AUTHORIZATION_PREFIX)) {
-      return null;
-    }
-    return authHeader.substring(AUTHORIZATION_PREFIX.length());
+    HttpCookie cookie = exchange.getRequest().getCookies().getFirst("ACCESS_TOKEN");
+    return cookie != null ? cookie.getValue() : null;
   }
 
   /** 인증 실패(401) 응답 처리. */
