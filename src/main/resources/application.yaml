@@ -26,7 +26,7 @@ spring:
             client-secret: ${KAKAO_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: "https://api.todaybook.xyz/login/oauth2/code/kakao"
+            redirect-uri: "kakao-redirect-uri"
             scope:
               - profile_nickname
 
@@ -47,6 +47,12 @@ spring:
     activate:
       on-profile: local
     import: optional:file:.env[.properties]
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: "http://localhost:9000/login/oauth2/code/kakao"
 app:
   auth:
     login-success-redirect-uri: https://localhost:63342/today-book-front/login/success
@@ -58,6 +64,12 @@ spring:
   config:
     activate:
       on-profile: dev
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: "https://dev-api.todaybook.life/login/oauth2/code/kakao"
 app:
   auth:
     login-success-redirect-uri: https://today-book.github.io/today-book-front/login/success
