@@ -9,7 +9,6 @@ import org.todaybook.gateway.auth.application.refresh.RefreshTokenManager;
 import org.todaybook.gateway.auth.application.spi.token.AccessTokenIssuer;
 import org.todaybook.gateway.auth.application.token.AccessTokenIssueCommand;
 import org.todaybook.gateway.auth.application.token.IssuedAccessToken;
-import org.todaybook.gateway.auth.infrastructure.jwt.JwtAccessTokenManager;
 import reactor.core.publisher.Mono;
 
 /**
@@ -18,7 +17,7 @@ import reactor.core.publisher.Mono;
  * <p>이 클래스는 토큰 관련 흐름을 조합(오케스트레이션)하는 역할만 수행하며, 토큰 생성/검증/회전/저장 같은 세부 정책은 각각의 Manager에게 위임합니다.
  *
  * <ul>
- *   <li>{@link JwtAccessTokenManager}: Access Token(JWT) 생성 및 파싱/검증
+ *   <li>{@link AccessTokenIssuer}: Access Token(JWT) 생성 및 파싱/검증
  *   <li>{@link RefreshTokenManager}: Refresh Token 발급/회전/폐기 및 저장 정책
  * </ul>
  *

@@ -65,7 +65,7 @@ public class RefreshTokenManager {
     Duration ttl = Duration.ofSeconds(tokenProps.getExpirationSeconds());
 
     return tokenStore
-        .save(userId, hashedRefreshToken, ttl)
+        .save(hashedRefreshToken, userId, ttl)
         .flatMap(
             saved -> {
               if (!saved) {

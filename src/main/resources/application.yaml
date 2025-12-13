@@ -51,7 +51,7 @@ spring:
 token:
   access:
     secret: ${ACCESS_TOKEN_SECRET}
-    expirationSeconds: ${ACCESS_TOKEN_EXPIRATION_SECONDS}
+    expiration-seconds: ${ACCESS_TOKEN_EXPIRATION_SECONDS}
   refresh:
     secret: ${REFRESH_TOKEN_SECRET}
     expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS}
