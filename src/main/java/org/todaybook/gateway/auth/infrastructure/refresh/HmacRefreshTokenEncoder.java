@@ -52,11 +52,20 @@ public class HmacRefreshTokenEncoder implements RefreshTokenEncoder {
   @PostConstruct
   void init() {
     String secret = props.getSecret();
+
     if (secret == null || secret.isBlank()) {
       throw new IllegalStateException("refresh-token.secret must not be blank");
     }
 
-    this.keySpec = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), HMAC_ALG);
+    byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+
+    // HmacSHA256은 최소 256bit(32byte) 이상 권장
+    if (keyBytes.length < 32) {
+      throw new IllegalStateException(
+          "refresh-token.secret must be at least 32 bytes for HmacSHA256");
+    }
+
+    this.keySpec = new SecretKeySpec(keyBytes, HMAC_ALG);
   }
 
   /**

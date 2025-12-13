@@ -62,7 +62,19 @@ public class JwtAccessTokenManager {
    */
   @PostConstruct
   void init() {
-    this.secretKey = Keys.hmacShaKeyFor(props.getSecret().getBytes(StandardCharsets.UTF_8));
+    String secret = props.getSecret();
+
+    if (secret == null || secret.isBlank()) {
+      throw new IllegalStateException("token.access.secret must not be blank");
+    }
+
+    // HS256은 최소 256bit(32byte) 이상 권장
+    byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+    if (keyBytes.length < 32) {
+      throw new IllegalStateException("token.access.secret must be at least 32 bytes for HS256");
+    }
+
+    this.secretKey = Keys.hmacShaKeyFor(keyBytes);
   }
 
   /**
