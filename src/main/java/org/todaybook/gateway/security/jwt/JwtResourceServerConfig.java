@@ -7,13 +7,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
-import org.todaybook.gateway.auth.infrastructure.jwt.JwtProperties;
+import org.todaybook.gateway.auth.infrastructure.jwt.AccessTokenProperties;
 
 @Configuration
 public class JwtResourceServerConfig {
 
   @Bean
-  public ReactiveJwtDecoder reactiveJwtDecoder(JwtProperties jwtProperties) {
+  public ReactiveJwtDecoder reactiveJwtDecoder(AccessTokenProperties jwtProperties) {
     SecretKey key = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
 
     return NimbusReactiveJwtDecoder.withSecretKey(key).build();

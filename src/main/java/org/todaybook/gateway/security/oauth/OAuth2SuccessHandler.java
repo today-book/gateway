@@ -11,7 +11,7 @@ import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.todaybook.gateway.auth.infrastructure.redis.AuthCodeStore;
+import org.todaybook.gateway.auth.infrastructure.redis.RedisAuthCodeStore;
 import org.todaybook.gateway.security.kakao.KakaoOAuth2User;
 import reactor.core.publisher.Mono;
 
@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono;
 public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler {
 
   /** OAuth 로그인 이후 발급된 authCode를 Redis에 저장하는 스토어 */
-  private final AuthCodeStore authCodeStore;
+  private final RedisAuthCodeStore authCodeStore;
 
   /** OAuth 관련 설정 값 (로그인 성공 리다이렉트 URI 등) */
   private final AuthProperties authProperties;
@@ -95,7 +95,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
   /**
    * authCode와 Kakao 사용자 식별자(kakaoId)를 Redis에 저장합니다.
    *
-   * <p>authCode는 짧은 TTL(60초)을 가지며, 로그인 API에서 accessToken / refreshToken 발급 시 검증에 사용됩니다.
+   * <p>authCode는 짧은 TTL(60초)을 가지며, 로그인 API에서 token / token 발급 시 검증에 사용됩니다.
    *
    * @param authCode 생성된 인증 코드
    * @param user Kakao OAuth 사용자 정보

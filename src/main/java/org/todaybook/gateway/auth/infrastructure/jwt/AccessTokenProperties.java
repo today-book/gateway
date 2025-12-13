@@ -4,10 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "jwt")
-public class JwtProperties {
-
+@ConfigurationProperties(prefix = "token.access")
+public class AccessTokenProperties {
   private String secret;
-  private Long accessTokenExpirationSeconds;
-  private Long refreshTokenExpirationSeconds;
+  private Long expirationSeconds;
 }
