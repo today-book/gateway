@@ -25,7 +25,7 @@ public class AuthController {
 
   @PostMapping("/logout")
   public Mono<Void> logout(@RequestHeader("X-Refresh-Token") String refreshToken) {
-    return authService.delete(refreshToken);
+    return authService.logout(refreshToken);
   }
 
   @PostMapping("/refresh")

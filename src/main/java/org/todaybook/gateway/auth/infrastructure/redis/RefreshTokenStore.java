@@ -18,10 +18,6 @@ public class RefreshTokenStore {
     return reactiveRedisTemplate.opsForValue().set(key(refreshToken), userId, ttl);
   }
 
-  public Mono<String> findUserId(String refreshToken) {
-    return reactiveRedisTemplate.opsForValue().get(key(refreshToken));
-  }
-
   public Mono<Long> delete(String refreshToken) {
     return reactiveRedisTemplate.delete(key(refreshToken));
   }

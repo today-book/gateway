@@ -1,12 +1,10 @@
 package org.todaybook.gateway.auth.application;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.todaybook.gateway.auth.infrastructure.jwt.JwtTokenCreateCommand;
+import org.todaybook.gateway.auth.domain.JwtToken;
 import org.todaybook.gateway.auth.infrastructure.redis.AuthCodeStore;
 import org.todaybook.gateway.auth.infrastructure.redis.RefreshTokenStore;
-import org.todaybook.gateway.auth.domain.JwtToken;
 import reactor.core.publisher.Mono;
 
 /**
@@ -33,54 +31,48 @@ public class AuthService {
    */
   public Mono<JwtToken> loginWithAuthCode(String authCode) {
     return authenticateAndConsumeAuthCode(authCode)
-        .flatMap(this::createUserToken);
+        .flatMap(authTokenService::issue);
   }
 
   /**
-   * refreshToken을 이용해 새로운 JWT 토큰을 재발급합니다.
+   * refreshToken을 이용해 Access Token과 Refresh Token을 재발급합니다.
    *
-   * @param refreshToken 클라이언트가 보유한 refreshToken
+   * <p>기존 refreshToken은 원자적으로 회전되며,
+   * 유효하지 않은 경우 인증 오류를 반환합니다.
+   *
+   * @param refreshToken 클라이언트가 보유한 refreshToken(UUID)
    * @return 새로 발급된 JwtToken
    */
   public Mono<JwtToken> refresh(String refreshToken) {
-    return authenticateRefreshToken(refreshToken)
-        .flatMap(userId -> refreshTokenStore.delete(refreshToken).then(createUserToken(userId)));
-  }
+    String newRefreshToken = authTokenService.createRefreshToken();
 
+    return refreshTokenStore
+        .rotate(refreshToken, newRefreshToken, authTokenService.refreshTokenTtl())
+        .switchIfEmpty(Mono.error(new UnauthorizedException("INVALID_REFRESH_TOKEN")))
+        .map(userId -> authTokenService.issueWithRefresh(userId, newRefreshToken));
+  }
   /**
    * refreshToken을 폐기하여 로그아웃을 처리합니다.
+   *
+   * <p>refreshToken이 존재하지 않거나 이미 만료된 경우에도
+   * 로그아웃 요청은 성공으로 처리됩니다.
    *
    * @param refreshToken 클라이언트가 보유한 refreshToken
    * @return 로그아웃 처리 완료 Mono
    */
-  public Mono<Void> delete(String refreshToken) {
-    return authenticateRefreshToken(refreshToken)
-        .flatMap(userId -> refreshTokenStore.delete(refreshToken))
-        .then();
-  }
-
-  /** authCode를 인증 수단으로 검증하고 즉시 소비하여 사용자 식별자를 반환합니다. */
-  private Mono<String> authenticateAndConsumeAuthCode(String authCode) {
-    return requireAuthenticationValue(authCodeStore.getAndDeleteKakaoId(authCode), "INVALID_AUTH_CODE");
-  }
-
-  /** refreshToken의 유효성을 검증하고 사용자 식별자를 반환합니다. */
-  private Mono<String> authenticateRefreshToken(String refreshToken) {
-    return requireAuthenticationValue(
-        refreshTokenStore.findUserId(refreshToken), "INVALID_REFRESH_TOKEN");
+  public Mono<Void> logout(String refreshToken) {
+    return refreshTokenStore.delete(refreshToken).then();
   }
 
   /**
-   * USER 권한을 가진 JWT 토큰을 생성합니다.
+   * authCode를 인증 수단으로 검증하고 즉시 소비하여 사용자 식별자를 반환합니다.
    *
-   * <p>추후 실제 사용자 조회 로직이 추가되면 Claim 생성 책임을 이 메서드에서 확장할 수 있습니다.
+   * <p>authCode가 유효하지 않거나 이미 사용된 경우 인증 오류를 발생시킵니다.
+   *
    */
-  private Mono<JwtToken> createUserToken(String userId) {
-    return authTokenService.issue(new JwtTokenCreateCommand(userId, "USER", List.of("USER_ROLE")));
-  }
-
-  /** Mono 결과가 비어 있을 경우 UnauthorizedException을 발생시킵니다. */
-  private <T> Mono<T> requireAuthenticationValue(Mono<T> source, String errorCode) {
-    return source.switchIfEmpty(Mono.error(new UnauthorizedException(errorCode)));
+  private Mono<String> authenticateAndConsumeAuthCode(String authCode) {
+    return authCodeStore
+        .getAndDeleteKakaoId(authCode)
+        .switchIfEmpty(Mono.error(new UnauthorizedException("INVALID_AUTH_CODE")));
   }
 }
