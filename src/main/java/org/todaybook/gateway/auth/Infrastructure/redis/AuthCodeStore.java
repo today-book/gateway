@@ -12,11 +12,11 @@ public class AuthCodeStore {
 
   private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
 
-  public Mono<Boolean> save(String authCode, String userId) {
-    return reactiveRedisTemplate.opsForValue().set(key(authCode), userId, Duration.ofSeconds(60));
+  public Mono<Boolean> save(String authCode, String kakaoId) {
+    return reactiveRedisTemplate.opsForValue().set(key(authCode), kakaoId, Duration.ofSeconds(60));
   }
 
-  public Mono<String> getUserId(String authCode) {
+  public Mono<String> getKakaoId(String authCode) {
     return reactiveRedisTemplate.opsForValue().get(key(authCode));
   }
 
@@ -25,6 +25,6 @@ public class AuthCodeStore {
   }
 
   private String key(String authCode) {
-    return "auth:code:" + authCode;
+    return "auth:code:kakao:" + authCode;
   }
 }
