@@ -32,8 +32,8 @@ public class AuthService {
    * @return 발급된 JwtToken
    */
   public Mono<JwtToken> loginWithAuthCode(String authCode) {
-    return authenticateAuthCode(authCode)
-        .flatMap(userId -> authCodeStore.delete(authCode).then(createUserToken(userId)));
+    return authenticateAndConsumeAuthCode(authCode)
+        .flatMap(this::createUserToken);
   }
 
   /**
@@ -59,9 +59,9 @@ public class AuthService {
         .then();
   }
 
-  /** authCode의 유효성을 검증하고 사용자 식별자를 반환합니다. */
-  private Mono<String> authenticateAuthCode(String authCode) {
-    return requireAuthenticationValue(authCodeStore.getKakaoId(authCode), "INVALID_AUTH_CODE");
+  /** authCode를 인증 수단으로 검증하고 즉시 소비하여 사용자 식별자를 반환합니다. */
+  private Mono<String> authenticateAndConsumeAuthCode(String authCode) {
+    return requireAuthenticationValue(authCodeStore.getAndDeleteKakaoId(authCode), "INVALID_AUTH_CODE");
   }
 
   /** refreshToken의 유효성을 검증하고 사용자 식별자를 반환합니다. */

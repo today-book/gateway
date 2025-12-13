@@ -16,12 +16,8 @@ public class AuthCodeStore {
     return reactiveRedisTemplate.opsForValue().set(key(authCode), kakaoId, ttl);
   }
 
-  public Mono<String> getKakaoId(String authCode) {
-    return reactiveRedisTemplate.opsForValue().get(key(authCode));
-  }
-
-  public Mono<Long> delete(String authCode) {
-    return reactiveRedisTemplate.delete(key(authCode));
+  public Mono<String> getAndDeleteKakaoId(String authCode) {
+    return reactiveRedisTemplate.opsForValue().getAndDelete(key(authCode));
   }
 
   private String key(String authCode) {

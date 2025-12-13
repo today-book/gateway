@@ -62,7 +62,9 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
     String authCode = generateAuthCode();
 
     // authCode 저장 후 프론트엔드로 리다이렉트
-    return saveAuthCode(authCode, user).then(redirectWithAuthCode(exchange, authCode));
+    return saveAuthCode(authCode, user)
+        .flatMap(saved -> saved ? redirectWithAuthCode(exchange, authCode)
+            : Mono.error(new IllegalStateException("Failed to store authCode")));
   }
 
   /**
