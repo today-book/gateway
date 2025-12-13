@@ -33,12 +33,12 @@ public class JwtProvider {
 
   public Mono<JwtToken> createToken(JwtTokenCreateCommand command) {
     String accessToken = createAccessToken(command);
-    String refreshToken = createRefreshToken(command.kakaoId());
+    String refreshToken = createRefreshToken(command.userId());
 
     return refreshTokenStore
         .save(
             refreshToken,
-            command.kakaoId(),
+            command.userId(),
             Duration.ofSeconds(jwtProperties.getRefreshTokenExpirationSeconds()))
         .thenReturn(
             new JwtToken(
@@ -63,7 +63,7 @@ public class JwtProvider {
 
   private String createAccessToken(JwtTokenCreateCommand command) {
     return Jwts.builder()
-        .subject(command.kakaoId())
+        .subject(command.userId())
         .claim("nickname", command.nickname())
         .claim("roles", command.roles())
         .issuedAt(new Date())

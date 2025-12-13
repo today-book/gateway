@@ -1,21 +1,16 @@
 package org.todaybook.gateway.security.oauth;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.todaybook.gateway.auth.domain.TokenSerializationException;
-import org.todaybook.gateway.auth.Infrastructure.jwt.JwtProvider;
-import org.todaybook.gateway.auth.domain.JwtToken;
-import org.todaybook.gateway.auth.Infrastructure.jwt.JwtTokenCreateCommand;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.todaybook.gateway.auth.Infrastructure.redis.AuthCodeStore;
 import org.todaybook.gateway.security.kakao.KakaoOAuth2User;
 import reactor.core.publisher.Mono;
 
@@ -24,9 +19,8 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler {
 
-  private final JwtProvider jwtProvider;
-
-  private final ObjectMapper objectMapper;
+  private final AuthCodeStore authCodeStore;
+  private final AuthProperties authProperties;
 
   @Override
   public Mono<Void> onAuthenticationSuccess(
@@ -35,21 +29,24 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
 
     KakaoOAuth2User user = KakaoOAuth2User.from(oAuth2User);
 
-    JwtTokenCreateCommand command =
-        new JwtTokenCreateCommand(user.kakaoId(), user.nickname(), List.of("USER_ROLE"));
+    String authCode = UUID.randomUUID().toString();
 
-    return jwtProvider.createToken(command).flatMap(jwt -> writeTokenResponse(exchange, jwt));
-  }
-
-  private Mono<Void> writeTokenResponse(WebFilterExchange exchange, JwtToken jwt) {
-    var response = exchange.getExchange().getResponse();
-    response.setStatusCode(HttpStatus.OK);
-    response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-
-    return Mono.fromCallable(() -> objectMapper.writeValueAsBytes(jwt))
-        .flatMap(bytes -> response.writeWith(Mono.just(response.bufferFactory().wrap(bytes))))
-        .onErrorMap(
-            JsonProcessingException.class,
-            e -> new TokenSerializationException("JSON_SERIALIZATION_ERROR", e));
+    return authCodeStore
+        .save(authCode, user.kakaoId())
+        .then(
+            Mono.defer(
+                () -> {
+                  var response = exchange.getExchange().getResponse();
+                  response.setStatusCode(HttpStatus.FOUND);
+                  response
+                      .getHeaders()
+                      .setLocation(
+                          UriComponentsBuilder.fromUriString(
+                                  authProperties.getLoginSuccessRedirectUri())
+                              .queryParam("authCode", authCode)
+                              .build()
+                              .toUri());
+                  return response.setComplete();
+                }));
   }
 }
