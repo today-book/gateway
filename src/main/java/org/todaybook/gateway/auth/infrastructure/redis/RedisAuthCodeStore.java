@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 
 @Component
 @RequiredArgsConstructor
-public class AuthCodeStore {
+public class RedisAuthCodeStore {
 
   private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
 

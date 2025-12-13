@@ -1,123 +1,116 @@
 package org.todaybook.gateway.auth.application;
 
-import java.time.Duration;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.todaybook.gateway.auth.application.dto.IssuedToken;
-import org.todaybook.gateway.auth.infrastructure.jwt.JwtProperties;
-import org.todaybook.gateway.auth.infrastructure.jwt.JwtProvider;
-import org.todaybook.gateway.auth.infrastructure.jwt.JwtTokenCreateCommand;
-import org.todaybook.gateway.auth.infrastructure.redis.RefreshTokenStore;
+import org.todaybook.gateway.auth.infrastructure.jwt.AcessTokenIssueCommand;
+import org.todaybook.gateway.auth.infrastructure.jwt.IssuedAccessToken;
+import org.todaybook.gateway.auth.infrastructure.jwt.JwtAccessTokenManager;
+import org.todaybook.gateway.auth.infrastructure.refresh.IssuedRefreshToken;
+import org.todaybook.gateway.auth.infrastructure.refresh.RefreshTokenManager;
 import reactor.core.publisher.Mono;
 
 /**
- * 인증 토큰 발급 및 저장 정책을 담당하는 서비스입니다.
+ * 토큰 발급/재발급/폐기 유스케이스를 담당하는 Application Service입니다.
  *
- * <p>이 서비스는 인증이 완료된 사용자에 대해 Access Token(JWT)과 Refresh Token(UUID)을 생성하고, Refresh Token을 Redis에
- * 저장하는 책임을 가집니다.
+ * <p>이 클래스는 토큰 관련 흐름을 조합(오케스트레이션)하는 역할만 수행하며, 토큰 생성/검증/회전/저장 같은 세부 정책은 각각의 Manager에게 위임합니다.
  *
- * <p>AuthService는 이 클래스의 내부 구현을 알 필요 없이 토큰 발급 결과(JwtToken)만을 사용합니다.
+ * <ul>
+ *   <li>{@link JwtAccessTokenManager}: Access Token(JWT) 생성 및 파싱/검증
+ *   <li>{@link RefreshTokenManager}: Refresh Token 발급/회전/폐기 및 저장 정책
+ * </ul>
  *
- * @author 김지원
- * @since 1.0.0.
+ * <p>중요한 설계 원칙:
+ *
+ * <ul>
+ *   <li>본 클래스는 Properties(만료 시간/시크릿 등)를 직접 참조하지 않습니다.
+ *   <li>저장소(Store/Redis)에 직접 접근하지 않고 Manager를 통해서만 접근합니다.
+ *   <li>API 응답에 필요한 expiresIn 값은 Manager가 계산하여 반환한 값을 사용합니다.
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
 public class AuthTokenService {
 
-  /** JWT 생성 및 파싱을 담당하는 Provider입니다. */
-  private final JwtProvider jwtProvider;
+  /** Access Token(JWT) 발급/검증 로직을 캡슐화한 Manager */
+  private final JwtAccessTokenManager jwtAccessTokenManager;
 
-  /** Refresh Token의 저장 및 회전 정책을 담당하는 저장소입니다. */
-  private final RefreshTokenStore refreshTokenStore;
-
-  /** JWT 만료 시간 및 설정 값을 제공하는 Properties입니다. */
-  private final JwtProperties jwtProperties;
+  /** Refresh Token 발급/회전/폐기 및 저장 정책을 캡슐화한 Manager */
+  private final RefreshTokenManager refreshTokenManager;
 
   /**
-   * 신규 로그인 시 Access Token과 Refresh Token을 발급합니다.
+   * 사용자 식별자를 기반으로 Access Token과 Refresh Token을 발급합니다.
    *
-   * <p>Refresh Token은 UUID 기반으로 생성되며, Redis에 사용자 식별자와 함께 저장됩니다.
+   * <p>처리 흐름:
    *
-   * @param userId 인증이 완료된 사용자 식별자
-   * @return 발급된 IssuedToken
+   * <ol>
+   *   <li>Access Token(JWT) 발급
+   *   <li>Refresh Token 발급 및 저장(해싱 + TTL 적용 포함)
+   *   <li>클라이언트 응답 DTO로 조합
+   * </ol>
+   *
+   * <p>expiresIn 값은 일반적으로 Access Token의 TTL을 의미하며, Refresh Token TTL이 필요하다면 별도 필드로 분리하는 것을 권장합니다.
+   *
+   * @param userId 인증된 사용자 식별자
+   * @return 발급된 토큰 정보(Access/Refresh + expiresIn)
    */
   public Mono<IssuedToken> issue(String userId) {
-    JwtTokenCreateCommand command = new JwtTokenCreateCommand(userId, "USER", List.of("USER_ROLE"));
+    // TODO: 실제 운영에서는 role/nickname 등 Claim 구성은 사용자 서비스 조회 또는 정책에 맞게 구성
+    AcessTokenIssueCommand command =
+        new AcessTokenIssueCommand(userId, "USER", List.of("USER_ROLE"));
 
-    String accessToken = createAccessToken(command);
-    String refreshToken = createRefreshToken();
+    // Access Token 발급(동기) - 필요 시 Mono.fromSupplier로 감싸 예외/스케줄링을 일관되게 처리할 수 있습니다.
+    IssuedAccessToken accessToken = jwtAccessTokenManager.issue(command);
 
-    return refreshTokenStore
-        .save(
-            refreshToken,
-            command.userId(),
-            Duration.ofSeconds(jwtProperties.getRefreshTokenExpirationSeconds()))
-        .flatMap(
-            saved ->
-                saved
-                    ? Mono.just(
-                        new IssuedToken(
-                            accessToken,
-                            refreshToken,
-                            "Bearer",
-                            jwtProperties.getAccessTokenExpirationSeconds()))
-                    : Mono.error(new IllegalStateException("Failed to persist refresh token")));
+    // Refresh Token 발급(비동기) - 내부에서 해시 저장 및 TTL 적용까지 수행
+    Mono<IssuedRefreshToken> refreshTokenMono = refreshTokenManager.issue(userId);
+
+    return refreshTokenMono.map(
+        refreshToken ->
+            new IssuedToken(
+                accessToken.token(), refreshToken.token(), accessToken.expiresInSeconds()));
   }
 
   /**
-   * Refresh Token 재발급 시 Access Token만 새로 발급합니다.
+   * Refresh Token을 이용해 Access Token과 Refresh Token을 재발급합니다.
    *
-   * <p>Refresh Token은 이미 회전(rotation)되어 저장된 상태이므로, 이 메서드는 Access Token 생성 책임만 가집니다.
+   * <p>기존 Refresh Token은 재사용 방지를 위해 회전(rotation)되며, 유효하지 않거나 이미 사용된 토큰인 경우 인증 오류가 발생합니다.
    *
-   * @param userId Refresh Token을 통해 검증된 사용자 식별자
-   * @param refreshToken 새로 발급된 Refresh Token
-   * @return 새로 구성된 IssuedToken
+   * <p>rotate 결과로부터 userId를 획득하여 Access Token을 다시 발급합니다. (별도 verify 없이 rotate를 검증 수단으로 사용하는 설계)
+   *
+   * @param oldRawRefreshToken 클라이언트가 보유한 기존 Refresh Token 원문
+   * @return 새로 발급된 토큰 정보(Access/Refresh + expiresIn)
    */
-  public IssuedToken issueWithRefresh(String userId, String refreshToken) {
-    String accessToken =
-        createAccessToken(new JwtTokenCreateCommand(userId, "USER", List.of("USER_ROLE")));
+  public Mono<IssuedToken> refresh(String oldRawRefreshToken) {
+    return refreshTokenManager
+        .rotate(oldRawRefreshToken)
+        .map(
+            rotated -> {
+              String userId = rotated.userId();
 
-    return new IssuedToken(accessToken, refreshToken, "Bearer", accessTokenExpireSeconds());
+              // TODO: 실제 운영에서는 role/nickname 등 Claim 구성은 사용자 서비스 조회 또는 정책에 맞게 구성
+              AcessTokenIssueCommand command =
+                  new AcessTokenIssueCommand(userId, "USER", List.of("USER_ROLE"));
+
+              IssuedAccessToken access = jwtAccessTokenManager.issue(command);
+
+              return new IssuedToken(
+                  access.token(),
+                  rotated.token(), // 새로 발급된 Refresh Token
+                  access.expiresInSeconds()); // expiresIn은 Access Token 기준
+            });
   }
 
   /**
-   * Access Token(JWT)을 생성합니다.
+   * Refresh Token을 폐기합니다(로그아웃).
    *
-   * @param command Access Token 생성에 필요한 사용자 정보
-   * @return 서명된 Access Token 문자열
+   * <p>폐기 요청은 명령(Command) 성격이며, 이미 만료되었거나 존재하지 않는 경우에도 정상 종료로 처리할 수 있습니다.
+   *
+   * @param refreshToken 클라이언트가 보유한 Refresh Token 원문
+   * @return 폐기 처리 완료 신호
    */
-  public String createAccessToken(JwtTokenCreateCommand command) {
-    return jwtProvider.createAccessToken(command);
-  }
-
-  /**
-   * Refresh Token(UUID)을 생성합니다.
-   *
-   * <p>Refresh Token은 서버 상태(Redis)에 저장되며, 자체적으로 의미를 가지지 않는 랜덤 값입니다.
-   *
-   * @return 새로 생성된 Refresh Token
-   */
-  public String createRefreshToken() {
-    return jwtProvider.createRefreshToken();
-  }
-
-  /**
-   * Refresh Token의 만료 시간을 반환합니다.
-   *
-   * @return Refresh Token TTL
-   */
-  public Duration refreshTokenTtl() {
-    return Duration.ofSeconds(jwtProperties.getRefreshTokenExpirationSeconds());
-  }
-
-  /**
-   * Access Token의 만료 시간을 초 단위로 반환합니다.
-   *
-   * @return Access Token 만료 시간(초)
-   */
-  public long accessTokenExpireSeconds() {
-    return jwtProperties.getAccessTokenExpirationSeconds();
+  public Mono<Void> revokeRefreshToken(String refreshToken) {
+    return refreshTokenManager.revoke(refreshToken);
   }
 }

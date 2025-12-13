@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.todaybook.gateway.auth.application.AuthService;
-import org.todaybook.gateway.auth.infrastructure.jwt.JwtProperties;
-import org.todaybook.gateway.auth.presentation.dto.JwtToken;
+import org.todaybook.gateway.auth.infrastructure.refresh.RefreshTokenProperties;
 import org.todaybook.gateway.auth.presentation.dto.LoginRequest;
+import org.todaybook.gateway.auth.presentation.dto.TokenResponse;
 import reactor.core.publisher.Mono;
 
 /**
@@ -37,7 +37,7 @@ import reactor.core.publisher.Mono;
  */
 @RequestMapping("/api/v1/auth")
 @RestController
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties(RefreshTokenProperties.class)
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -49,7 +49,7 @@ public class AuthController {
    *
    * <p>Cookie의 maxAge와 서버의 Refresh Token TTL을 동일한 기준으로 유지하기 위해 사용됩니다.
    */
-  private final JwtProperties jwtProperties;
+  private final RefreshTokenProperties refreshTokenProperties;
 
   /** 인증 관련 비즈니스 로직을 담당하는 서비스입니다. */
   private final AuthService authService;
@@ -67,12 +67,12 @@ public class AuthController {
    * <p>Refresh Token은 클라이언트에서 직접 접근하지 않으며, 이후 토큰 재발급 시 자동으로 전송됩니다.
    */
   @PostMapping("/login")
-  public Mono<JwtToken> login(
+  public Mono<TokenResponse> login(
       @RequestBody @Valid LoginRequest request, ServerHttpResponse response) {
     return authService
         .loginWithAuthCode(request.authCode())
         .doOnNext(issuedToken -> addRefreshTokenCookie(response, issuedToken.refreshToken()))
-        .map(JwtToken::from);
+        .map(TokenResponse::from);
   }
 
   /**
@@ -96,12 +96,12 @@ public class AuthController {
    * <p>보안을 위해 Refresh Token은 회전(Rotate) 방식으로 재발급되며, 기존 Refresh Token은 즉시 무효화됩니다.
    */
   @PostMapping("/refresh")
-  public Mono<JwtToken> refresh(
+  public Mono<TokenResponse> refresh(
       @CookieValue(REFRESH_TOKEN_COOKIE) String refreshToken, ServerHttpResponse response) {
     return authService
         .refresh(refreshToken)
         .doOnNext(issuedToken -> addRefreshTokenCookie(response, issuedToken.refreshToken()))
-        .map(JwtToken::from);
+        .map(TokenResponse::from);
   }
 
   /**
@@ -123,7 +123,7 @@ public class AuthController {
             .secure(true)
             .sameSite("None")
             .path("/api/v1/auth")
-            .maxAge(Duration.ofSeconds(jwtProperties.getRefreshTokenExpirationSeconds()))
+            .maxAge(Duration.ofSeconds(refreshTokenProperties.getExpirationSeconds()))
             .build();
 
     response.addCookie(cookie);

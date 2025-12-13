@@ -48,11 +48,13 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
-
-jwt:
-  secret: ${JWT_SECRET}
-  access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS}
-  refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS}
+token:
+  access:
+    secret: ${ACCESS_TOKEN_SECRET}
+    expirationSeconds: ${ACCESS_TOKEN_EXPIRATION_SECONDS}
+  refresh:
+    secret: ${REFRESH_TOKEN_SECRET}
+    expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS}
 
 ---
 spring:
