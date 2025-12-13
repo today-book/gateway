@@ -14,7 +14,7 @@ import org.todaybook.gateway.error.GatewayException;
 public class UnauthorizedException extends GatewayException {
 
   /** 기본 인증 실패 예외를 생성합니다. */
-  public UnauthorizedException() {
-    super(GatewayErrorCode.UNAUTHORIZED);
+  public UnauthorizedException(String message) {
+    super(GatewayErrorCode.UNAUTHORIZED, message);
   }
 }
