@@ -89,13 +89,13 @@ public class RedisAuthCodeStore implements AuthCodeSaver, AuthCodeConsumer {
   @Override
   public Mono<AuthCodePayload> getAndDeletePayload(String authCode) {
     if (isBlank(authCode)) {
-      return Mono.error(new UnauthorizedException("Invalid authCode"));
+      return Mono.error(new UnauthorizedException("AuthCode is empty"));
     }
 
     return reactiveRedisTemplate
         .opsForValue()
         .getAndDelete(key(authCode))
-        .switchIfEmpty(Mono.error(new UnauthorizedException("Invalid authCode")))
+        .switchIfEmpty(Mono.error(new UnauthorizedException("AuthCode not found or already used")))
         .flatMap(
             json ->
                 Mono.fromCallable(() -> objectMapper.readValue(json, AuthCodePayload.class))
