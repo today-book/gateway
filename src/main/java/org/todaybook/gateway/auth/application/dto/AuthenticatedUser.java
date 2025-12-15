@@ -7,6 +7,6 @@ import org.todaybook.gateway.auth.infrastructure.userservice.model.UserSummary;
 public record AuthenticatedUser(String userId, String nickname, List<UserRole> roles) {
 
   public static AuthenticatedUser from(UserSummary userSummary) {
-    return new AuthenticatedUser(userSummary.id(), userSummary.nickname(), userSummary.roles());
+    return new AuthenticatedUser(userSummary.id(), userSummary.nickname(), userSummary.role());
   }
 }
