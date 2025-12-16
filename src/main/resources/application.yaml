@@ -81,7 +81,7 @@ token:
     expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS}
 
 user-service:
-  base-url: ${USER_SERVICE_URL}
+  base-url: lb://user-service
   internal-path: /internal/v1/users
   
 eureka:
