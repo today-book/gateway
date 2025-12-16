@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono;
  *
  * <p>인증 정책, 토큰 검증/무효화 로직은 {@link AuthService}에 위임합니다.
  */
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/auth/v1")
 @RestController
 @EnableConfigurationProperties(RefreshTokenProperties.class)
 @RequiredArgsConstructor
@@ -46,7 +46,7 @@ public class AuthController {
    *
    * <p>인증 관련 엔드포인트로만 전송되도록 제한하여 쿠키 노출 범위를 최소화합니다.
    */
-  private static final String REFRESH_COOKIE_PATH = "/api/v1/auth";
+  private static final String REFRESH_COOKIE_PATH = "/auth/v1";
 
   /** Refresh Token 만료 정책(TTL)을 담고 있는 설정 객체 */
   private final RefreshTokenProperties refreshTokenProperties;
