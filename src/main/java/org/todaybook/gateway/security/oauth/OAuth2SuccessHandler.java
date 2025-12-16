@@ -19,7 +19,7 @@ import reactor.core.publisher.Mono;
  * OAuth2 로그인 성공 시 호출되어 authCode를 발급하고 프론트엔드로 리다이렉트하는 WebFlux 전용 인증 성공 핸들러입니다.
  *
  * <p>이 클래스는 OAuth2 인증 성공 이후 세션을 사용하지 않고, 일회성 인증 코드(authCode)를 발급하여 프론트엔드가 자체 로그인
- * API(/api/v1/auth/login)를 호출하도록 유도합니다.
+ * API(/auth/v1/login)를 호출하도록 유도합니다.
  *
  * @author 김지원
  * @since 1.0.0
