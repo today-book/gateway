@@ -22,7 +22,7 @@ configurations {
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 ext {
@@ -45,10 +45,25 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
 
+    // data-redis-reactive
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+
+    // eureka-client
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+    // spring-cloud-loadbalancer
+    implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
+
+    // oauth2-resource-server
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
     testImplementation 'io.projectreactor:reactor-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 }
 
 dependencyManagement {
