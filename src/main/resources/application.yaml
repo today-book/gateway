@@ -214,7 +214,7 @@ spring:
             redirect-uri: "https://api.todaybook.life/login/oauth2/code/kakao"
 app:
   auth:
-    login-success-redirect-uri: https://todaybook.life/today-book-front/login/success
+    login-success-redirect-uri: https://todaybook.life/login/success
 
 cors:
   allowed-origins:
